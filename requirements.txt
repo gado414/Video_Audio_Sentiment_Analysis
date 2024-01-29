@@ -116,3 +116,4 @@ wcwidth
 wheel
 wordcloud
 zipp
+https://github.com/gado414/Video_Audio_Sentiment_Analysis/blob/main/activate.sh
