@@ -116,3 +116,4 @@ wcwidth
 wheel
 wordcloud
 zipp
+streamlit-webrtc
