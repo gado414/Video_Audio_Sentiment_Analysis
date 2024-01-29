@@ -7,6 +7,7 @@ from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
+from streamlit_webrtc import webrtc_streamer  # Added import for webrtc_streamer
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -167,18 +168,8 @@ def analyze_video(video_path):
 
 # Fungsi untuk melakukan voice to text secara real-time
 def real_time_voice():
-    with sr.Microphone() as source:
-        st.write("Silakan mulai berbicara...")
-        audio_data = recognizer.listen(source, timeout=10)
-        real_time_text = recognizer.recognize_google(audio_data, language="id-ID")
-        st.write("Hasil Voice to Text (Asli):")
-        st.write(real_time_text)
-        st.write("\nHasil Cleansing Data:")
-        cleaned_text = clean_and_process_text(real_time_text)
-        st.write(cleaned_text)
-        nlp_result = nlp_processing(cleaned_text)
-        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-        display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Real-Time Voice")
+    # Use webrtc_streamer to stream webcam video
+    webrtc_streamer(key="sample")
 
 # Fungsi utama
 def main():
