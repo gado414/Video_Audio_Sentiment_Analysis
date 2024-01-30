@@ -7,6 +7,7 @@ from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
+from streamlit_webrtc import webrtc_streamer  # Added import for webrtc_streamer
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -167,18 +168,50 @@ def analyze_video(video_path):
 
 # Fungsi untuk melakukan voice to text secara real-time
 def real_time_voice():
-    with sr.Microphone() as source:
-        st.write("Silakan mulai berbicara...")
-        audio_data = recognizer.listen(source, timeout=10)
-        real_time_text = recognizer.recognize_google(audio_data, language="id-ID")
-        st.write("Hasil Voice to Text (Asli):")
-        st.write(real_time_text)
-        st.write("\nHasil Cleansing Data:")
-        cleaned_text = clean_and_process_text(real_time_text)
-        st.write(cleaned_text)
-        nlp_result = nlp_processing(cleaned_text)
-        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-        display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Real-Time Voice")
+    webrtc_ctx = webrtc_streamer(key="sample", audio=True, video=False)
+
+    if not webrtc_ctx.state.playing:
+        st.warning("Waiting for webcam to start...")
+
+    with st.spinner("Waiting for voice input..."):
+        if webrtc_ctx.audio_recorder:
+            st.write("Silakan mulai berbicara...")
+
+            try:
+                audio_data = webrtc_ctx.audio_recorder.record(timeout=10)
+                st.success("Voice input berhasil diterima!")
+
+                # Use the common function for analyzing audio
+                analyze_audio_stream(audio_data)
+
+            except sr.UnknownValueError:
+                st.warning("Tidak dapat mendeteksi suara. Silakan coba lagi.")
+
+            except sr.RequestError as e:
+                st.error(f"Terjadi kesalahan pada layanan pengenalan suara: {e}")
+
+# Fungsi untuk melakukan analisis audio dari rekaman suara real-time
+def analyze_audio_stream(audio_data):
+    st.write("Analyzing audio...")
+
+    # Perform voice to text on the audio data
+    file_text = recognizer.recognize_google(audio_data, language="id-ID")
+
+    # Display the Voice to Text result
+    st.write("Voice to Text result:")
+    st.write(file_text)
+
+    # Perform text processing
+    st.write("Cleansing Data result:")
+    cleaned_text = clean_and_process_text(file_text)
+    st.write(cleaned_text)
+
+    # Perform sentiment analysis
+    nlp_result = nlp_processing(cleaned_text)
+    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
+
+    # Display the result with tag cloud
+    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Real-Time Voice")
 
 # Fungsi utama
 def main():
