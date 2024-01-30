@@ -6,8 +6,8 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from moviepy.editor import VideoFileClip
-from streamlit_webrtc import webrtc_streamer  # Added import for webrtc_streamer
+import pyaudio
+import wave
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -80,25 +80,45 @@ def display_result_with_tag_cloud(text, sentiment_score, category):
     # Create and display tag cloud
     create_tag_cloud(text)
 
-# Fungsi untuk mengunggah file audio dengan tag cloud
-def upload_audio_with_tag_cloud():
-    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
+# Fungsi untuk melakukan voice to text secara real-time menggunakan PyAudio
+def real_time_voice():
+    st.write("Silakan mulai berbicara...")
+    
+    # Menggunakan PyAudio untuk merekam audio
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16,
+                    channels=1,
+                    rate=44100,
+                    input=True,
+                    frames_per_buffer=1024)
+    
+    frames = []
+    timeout = 10  # Timeout set to 10 seconds
 
-    if uploaded_audio_file is not None:
-        audio_path = "temp_audio.wav"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
+    try:
+        for i in range(0, int(44100 / 1024 * timeout)):
+            data = stream.read(1024)
+            frames.append(data)
+    except Exception as e:
+        st.warning(f"Error: {e}")
+    
+    st.success("Voice input berhasil diterima!")
+    
+    # Stop the stream and close it
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
 
-        st.success("Audio uploaded successfully!")
+    # Save the recorded audio to a WAV file
+    audio_path = "real_time_audio.wav"
+    wf = wave.open(audio_path, 'wb')
+    wf.setnchannels(1)
+    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+    wf.setframerate(44100)
+    wf.writeframes(b''.join(frames))
+    wf.close()
 
-        # Perform audio analysis
-        analyze_audio(audio_path)
-
-# Fungsi untuk melakukan analisis audio
-def analyze_audio(audio_path):
-    st.write("Analyzing audio...")
-
-    # Perform voice to text on the uploaded audio
+    # Perform voice to text on the recorded audio
     file_text = voice_to_text_asli(audio_path)
 
     # Display the Voice to Text result
@@ -115,79 +135,7 @@ def analyze_audio(audio_path):
     sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
     # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Audio")
-
-# Fungsi untuk mengunggah file video dengan tag cloud
-def upload_video_with_tag_cloud():
-    uploaded_video_file = st.file_uploader("Upload Video File", type=["mp4"])
-
-    if uploaded_video_file is not None:
-        # Save the uploaded video file to a temporary location
-        with st.spinner("Uploading video..."):
-            video_path = "temp_video.mp4"
-            with open(video_path, "wb") as f:
-                f.write(uploaded_video_file.read())
-
-        st.success("Video uploaded successfully!")
-
-        # Perform video analysis
-        analyze_video(video_path)
-
-# Fungsi untuk melakukan analisis video
-def analyze_video(video_path):
-    st.write("Analyzing video...")
-
-    # Load the video clip
-    video_clip = VideoFileClip(video_path)
-
-    # Display the video duration
-    st.write(f"Video Duration: {video_clip.duration} seconds")
-
-    # Extract audio from the video
-    video_audio_path = "video_audio.wav"
-    video_clip.audio.write_audiofile(video_audio_path)
-
-    # Perform voice to text on the extracted audio
-    file_text = voice_to_text_asli(video_audio_path)
-
-    # Display the Voice to Text result
-    st.write("Voice to Text result:")
-    st.write(file_text)
-
-    # Perform text processing
-    st.write("Cleansing Data result:")
-    cleaned_text = clean_and_process_text(file_text)
-    st.write(cleaned_text)
-
-    # Perform sentiment analysis
-    nlp_result = nlp_processing(cleaned_text)
-    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-
-    # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Video")
-
-# Fungsi untuk melakukan voice to text secara real-time
-# Fungsi untuk melakukan voice to text secara real-time
-def real_time_voice():
-    st.write("Silakan mulai berbicara...")
-    
-    # menggunakan webrtc_streamer tanpa parameter audio dan video
-    webrtc_ctx = webrtc_streamer(key="sample")
-
-    if not webrtc_ctx:
-        st.error("Mohon nyalakan mikrofon Anda.")
-        return
-
-    audio_data = recognizer.listen(webrtc_ctx.audio_input, timeout=10)
-    real_time_text = recognizer.recognize_google(audio_data, language="id-ID")
-    st.write("Hasil Voice to Text (Asli):")
-    st.write(real_time_text)
-    st.write("\nHasil Cleansing Data:")
-    cleaned_text = clean_and_process_text(real_time_text)
-    st.write(cleaned_text)
-    nlp_result = nlp_processing(cleaned_text)
-    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Real-Time Voice")
+    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Real-Time Voice Analysis")
 
 # Fungsi utama
 def main():
