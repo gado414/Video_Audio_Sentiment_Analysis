@@ -117,4 +117,3 @@ wheel
 wordcloud
 zipp
 streamlit-webrtc
-pyaudio
