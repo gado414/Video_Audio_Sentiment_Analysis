@@ -1,5 +1,4 @@
 import streamlit as st
-import speech_recognition as sr
 import re
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
@@ -7,6 +6,7 @@ from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
+import speech_recognition as sr
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -165,33 +165,16 @@ def analyze_video(video_path):
     # Display the result with tag cloud
     display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Video")
 
-# Fungsi untuk melakukan voice to text secara real-time
-def real_time_voice():
-    with sr.Microphone() as source:
-        st.write("Silakan mulai berbicara...")
-        audio_data = recognizer.listen(source, timeout=10)
-        real_time_text = recognizer.recognize_google(audio_data, language="id-ID")
-        st.write("Hasil Voice to Text (Asli):")
-        st.write(real_time_text)
-        st.write("\nHasil Cleansing Data:")
-        cleaned_text = clean_and_process_text(real_time_text)
-        st.write(cleaned_text)
-        nlp_result = nlp_processing(cleaned_text)
-        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-        display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Real-Time Voice")
-
 # Fungsi utama
 def main():
     # Pilihan menu
-    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video", "Real-Time Voice"])
+    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video"])
 
     # Jalankan fungsi sesuai pilihan menu
     if menu == "Upload Audio":
         upload_audio_with_tag_cloud()
     elif menu == "Upload Video":
         upload_video_with_tag_cloud()
-    elif menu == "Real-Time Voice":
-        real_time_voice()
 
 if __name__ == "__main__":
     main()
