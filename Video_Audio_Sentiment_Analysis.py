@@ -97,8 +97,13 @@ def upload_audio_with_tag_cloud():
 def analyze_audio(audio_path):
     st.write("Analyzing audio...")
 
-    # Perform voice to text on the uploaded audio
-    file_text = voice_to_text_asli(audio_path)
+    # Convert .m4a to .wav using pydub
+    converted_audio_path = "temp_audio.wav"
+    audio = AudioSegment.from_file(audio_path, format="m4a")
+    audio.export(converted_audio_path, format="wav")
+
+    # Perform voice to text on the converted audio
+    file_text = voice_to_text_asli(converted_audio_path)
 
     # Display the Voice to Text result
     st.write("Voice to Text result:")
