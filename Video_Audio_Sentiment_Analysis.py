@@ -7,6 +7,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
 import speech_recognition as sr
+from pydub import AudioSegment
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
