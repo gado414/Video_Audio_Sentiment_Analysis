@@ -1,5 +1,6 @@
 import streamlit as st
 import re
+import os
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from transformers import pipeline
