@@ -6,6 +6,7 @@ from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import speech_recognition as sr
+import soundfile as sf
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -81,6 +82,19 @@ def upload_audio_with_tag_cloud():
             f.write(uploaded_audio_file.read())
 
         st.success(f"Audio '{uploaded_audio_file.name}' uploaded successfully!")
+
+        # Convert MP3 to WAV
+        if file_extension == 'mp3':
+            converted_audio_path = "temp_audio.wav"
+            audio_data, samplerate = sf.read(audio_path)
+            sf.write(converted_audio_path, audio_data, samplerate)
+
+            # Perform audio analysis
+            analyze_audio(converted_audio_path)
+
+        else:
+            # Perform audio analysis
+            analyze_audio(audio_path)
 
         # Perform audio analysis
         analyze_audio(audio_path)
