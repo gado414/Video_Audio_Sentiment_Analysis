@@ -5,9 +5,7 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from moviepy.editor import VideoFileClip
 import speech_recognition as sr
-from pydub import AudioSegment
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -44,15 +42,6 @@ def nlp_processing(text):
     nlp = pipeline("text-classification", model="ayameRushia/bert-base-indonesian-1.5G-sentiment-analysis-smsa")
     result = nlp(text)
     return result
-
-# Fungsi untuk membuat mapping antara skor sentiment dengan kategori
-def map_sentiment_category(score):
-    if score >= 0.6:
-        return 1  # Positif
-    elif score <= 0.4:
-        return -1  # Negatif
-    else:
-        return 0  # Netral
 
 # Fungsi untuk membuat tag cloud
 def create_tag_cloud(text):
@@ -94,34 +83,14 @@ def upload_audio_with_tag_cloud():
         st.success(f"Audio '{uploaded_audio_file.name}' uploaded successfully!")
 
         # Perform audio analysis
-        analyze_audio(audio_path, uploaded_audio_file.name)
-
-# Fungsi untuk melakukan analisis audio
-# Fungsi untuk mengunggah file audio dengan tag cloud
-def upload_audio_with_tag_cloud():
-    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
-
-    if uploaded_audio_file is not None:
-        audio_path = "temp_audio.wav"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
-
-        st.success("Audio uploaded successfully!")
-
-        # Perform audio analysis
         analyze_audio(audio_path)
 
 # Fungsi untuk melakukan analisis audio
 def analyze_audio(audio_path):
     st.write("Analyzing audio...")
 
-    # Convert .m4a to .wav using pydub
-    converted_audio_path = "temp_audio.wav"
-    audio = AudioSegment.from_file(audio_path, format="m4a")
-    audio.export(converted_audio_path, format="wav")
-
-    # Perform voice to text on the converted audio
-    file_text = voice_to_text_asli(converted_audio_path)
+    # Perform voice to text on the audio file
+    file_text = voice_to_text_asli(audio_path)
 
     # Display the Voice to Text result
     st.write("Voice to Text result:")
@@ -141,63 +110,16 @@ def analyze_audio(audio_path):
 
 # Fungsi untuk mengunggah file video dengan tag cloud
 def upload_video_with_tag_cloud():
-    uploaded_video_file = st.file_uploader("Upload Video File", type=["mp4"])
-
-    if uploaded_video_file is not None:
-        # Save the uploaded video file to a temporary location
-        with st.spinner("Uploading video..."):
-            video_path = "temp_video.mp4"
-            with open(video_path, "wb") as f:
-                f.write(uploaded_video_file.read())
-
-        st.success("Video uploaded successfully!")
-
-        # Perform video analysis
-        analyze_video(video_path)
-
-# Fungsi untuk melakukan analisis video
-def analyze_video(video_path):
-    st.write("Analyzing video...")
-
-    # Load the video clip
-    video_clip = VideoFileClip(video_path)
-
-    # Display the video duration
-    st.write(f"Video Duration: {video_clip.duration} seconds")
-
-    # Extract audio from the video
-    video_audio_path = "video_audio.wav"
-    video_clip.audio.write_audiofile(video_audio_path)
-
-    # Perform voice to text on the extracted audio
-    file_text = voice_to_text_asli(video_audio_path)
-
-    # Display the Voice to Text result
-    st.write("Voice to Text result:")
-    st.write(file_text)
-
-    # Perform text processing
-    st.write("Cleansing Data result:")
-    cleaned_text = clean_and_process_text(file_text)
-    st.write(cleaned_text)
-
-    # Perform sentiment analysis
-    nlp_result = nlp_processing(cleaned_text)
-    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-
-    # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Video")
+    st.write("Video analysis is not supported in this version.")
 
 # Fungsi utama
 def main():
     # Pilihan menu
-    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video"])
+    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio"])
 
     # Jalankan fungsi sesuai pilihan menu
     if menu == "Upload Audio":
         upload_audio_with_tag_cloud()
-    elif menu == "Upload Video":
-        upload_video_with_tag_cloud()
 
 if __name__ == "__main__":
     main()
