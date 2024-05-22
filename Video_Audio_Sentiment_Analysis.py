@@ -41,7 +41,7 @@ def voice_to_text_asli(audio_path):
 
 # Fungsi untuk melakukan NLP pada teks
 def nlp_processing(text):
-    nlp = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
+    nlp = pipeline("text-classification", model="ayameRushia/bert-base-indonesian-1.5G-sentiment-analysis-smsa")
     result = nlp(text)
     return result
 
