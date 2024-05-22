@@ -35,10 +35,17 @@ def clean_and_process_text(text):
 
 # Fungsi untuk mengubah suara menjadi teks
 def voice_to_text_asli(audio_path):
-    with sr.AudioFile(audio_path) as source:
-        audio_data = recognizer.record(source)
-        text_result = recognizer.recognize_google(audio_data, language="id-ID")
-        return text_result
+    try:
+        with sr.AudioFile(audio_path) as source:
+            audio_data = recognizer.record(source)
+            text_result = recognizer.recognize_google(audio_data, language="id-ID")
+            return text_result
+    except sr.UnknownValueError:
+        st.error("Google Speech Recognition could not understand the audio")
+        return ""
+    except sr.RequestError as e:
+        st.error(f"Could not request results from Google Speech Recognition service; {e}")
+        return ""
 
 # Fungsi untuk melakukan NLP pada teks
 def nlp_processing(text):
@@ -103,7 +110,6 @@ def upload_audio_with_tag_cloud():
 
             # Perform audio analysis
             analyze_audio(converted_audio_path, uploaded_audio_file.name)
-
         else:
             # Perform audio analysis
             analyze_audio(audio_path, uploaded_audio_file.name)
@@ -115,21 +121,22 @@ def analyze_audio(audio_path, original_file_name):
     # Perform voice to text on the audio file
     file_text = voice_to_text_asli(audio_path)
 
-    # Display the Voice to Text result
-    st.write("Voice to Text result:")
-    st.write(file_text)
+    if file_text:
+        # Display the Voice to Text result
+        st.write("Voice to Text result:")
+        st.write(file_text)
 
-    # Perform text processing
-    st.write("Cleansing Data result:")
-    cleaned_text = clean_and_process_text(file_text)
-    st.write(cleaned_text)
+        # Perform text processing
+        st.write("Cleansing Data result:")
+        cleaned_text = clean_and_process_text(file_text)
+        st.write(cleaned_text)
 
-    # Perform sentiment analysis
-    nlp_result = nlp_processing(cleaned_text)
-    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
+        # Perform sentiment analysis
+        nlp_result = nlp_processing(cleaned_text)
+        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
-    # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
+        # Display the result with tag cloud
+        display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
 
 # Fungsi untuk mengunggah file video dengan tag cloud
 def upload_video_with_tag_cloud():
@@ -165,21 +172,22 @@ def analyze_video(video_path):
     # Perform voice to text on the extracted audio
     file_text = voice_to_text_asli(video_audio_path)
 
-    # Display the Voice to Text result
-    st.write("Voice to Text result:")
-    st.write(file_text)
+    if file_text:
+        # Display the Voice to Text result
+        st.write("Voice to Text result:")
+        st.write(file_text)
 
-    # Perform text processing
-    st.write("Cleansing Data result:")
-    cleaned_text = clean_and_process_text(file_text)
-    st.write(cleaned_text)
+        # Perform text processing
+        st.write("Cleansing Data result:")
+        cleaned_text = clean_and_process_text(file_text)
+        st.write(cleaned_text)
 
-    # Perform sentiment analysis
-    nlp_result = nlp_processing(cleaned_text)
-    sentiment_score = map_sentiment_category(nlp_result[0]['score'])
+        # Perform sentiment analysis
+        nlp_result = nlp_processing(cleaned_text)
+        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
-    # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from Video {original_file_name}")
+        # Display the result with tag cloud
+        display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from Video {original_file_name}")
 
 # Fungsi utama
 def main():
