@@ -87,15 +87,17 @@ def upload_audio_with_tag_cloud():
 
     if uploaded_audio_file is not None:
         # Save the uploaded file to a temporary path
-        file_extension = uploaded_audio_file.name.split('.')[-1]
-        audio_path = "temp_audio." + file_extension
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
-
-        st.success(f"Audio '{uploaded_audio_file.name}' uploaded successfully!")
-
-        # Convert MP3 to WAV
+        file_name = uploaded_audio_file.name
+        file_extension = file_name.split('.')[-1]
+        
+        # Rename the file to video_audio.wav if it's MP3
         if file_extension == 'mp3':
+            file_name = "video_audio.wav"
+            audio_path = os.path.join("temp_audio", file_name)
+            with open(audio_path, "wb") as f:
+                f.write(uploaded_audio_file.read())
+            
+            # Convert MP3 to WAV
             converted_audio_path = "temp_audio.wav"
             audio_data, samplerate = sf.read(audio_path)
             sf.write(converted_audio_path, audio_data, samplerate)
@@ -104,22 +106,14 @@ def upload_audio_with_tag_cloud():
             analyze_audio(converted_audio_path)
 
         else:
+            audio_path = os.path.join("temp_audio", file_name)
+            with open(audio_path, "wb") as f:
+                f.write(uploaded_audio_file.read())
+
+            st.success(f"Audio '{file_name}' uploaded successfully!")
+
             # Perform audio analysis
             analyze_audio(audio_path)
-            
-# Fungsi untuk mengunggah file audio dengan tag cloud
-def upload_audio_with_tag_cloud():
-    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
-
-    if uploaded_audio_file is not None:
-        audio_path = "temp_audio.wav"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
-
-        st.success("Audio uploaded successfully!")
-
-        # Perform audio analysis
-        analyze_audio(audio_path)
 
 # Fungsi untuk melakukan analisis audio
 def analyze_audio(audio_path):
