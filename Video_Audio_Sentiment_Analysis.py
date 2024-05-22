@@ -7,7 +7,8 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
 import speech_recognition as sr
-from pydub import AudioSegment
+import soundfile as sf
+import os
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -85,43 +86,34 @@ def upload_audio_with_tag_cloud():
     uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
 
     if uploaded_audio_file is not None:
-        # Save the uploaded file to a temporary path
+        # Save the uploaded file to a temporary path with the original file name
         file_extension = uploaded_audio_file.name.split('.')[-1]
-        audio_path = "temp_audio." + file_extension
+        original_file_name = os.path.splitext(uploaded_audio_file.name)[0]
+        audio_path = f"{original_file_name}.{file_extension}"
         with open(audio_path, "wb") as f:
             f.write(uploaded_audio_file.read())
 
         st.success(f"Audio '{uploaded_audio_file.name}' uploaded successfully!")
 
-        # Perform audio analysis
-        analyze_audio(audio_path, uploaded_audio_file.name)
+        # Convert MP3 to WAV
+        if file_extension == 'mp3':
+            converted_audio_path = f"{original_file_name}.wav"
+            audio_data, samplerate = sf.read(audio_path)
+            sf.write(converted_audio_path, audio_data, samplerate)
+
+            # Perform audio analysis
+            analyze_audio(converted_audio_path, uploaded_audio_file.name)
+
+        else:
+            # Perform audio analysis
+            analyze_audio(audio_path, uploaded_audio_file.name)
 
 # Fungsi untuk melakukan analisis audio
-# Fungsi untuk mengunggah file audio dengan tag cloud
-def upload_audio_with_tag_cloud():
-    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
-
-    if uploaded_audio_file is not None:
-        audio_path = "temp_audio.wav"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
-
-        st.success("Audio uploaded successfully!")
-
-        # Perform audio analysis
-        analyze_audio(audio_path)
-
-# Fungsi untuk melakukan analisis audio
-def analyze_audio(audio_path):
+def analyze_audio(audio_path, original_file_name):
     st.write("Analyzing audio...")
 
-    # Convert .m4a to .wav using pydub
-    converted_audio_path = "temp_audio.wav"
-    audio = AudioSegment.from_file(audio_path, format="m4a")
-    audio.export(converted_audio_path, format="wav")
-
-    # Perform voice to text on the converted audio
-    file_text = voice_to_text_asli(converted_audio_path)
+    # Perform voice to text on the audio file
+    file_text = voice_to_text_asli(audio_path)
 
     # Display the Voice to Text result
     st.write("Voice to Text result:")
@@ -137,18 +129,18 @@ def analyze_audio(audio_path):
     sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
     # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Audio")
+    display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
 
 # Fungsi untuk mengunggah file video dengan tag cloud
 def upload_video_with_tag_cloud():
     uploaded_video_file = st.file_uploader("Upload Video File", type=["mp4"])
 
     if uploaded_video_file is not None:
-        # Save the uploaded video file to a temporary location
-        with st.spinner("Uploading video..."):
-            video_path = "temp_video.mp4"
-            with open(video_path, "wb") as f:
-                f.write(uploaded_video_file.read())
+        # Save the uploaded video file to a temporary location with the original file name
+        original_file_name = os.path.splitext(uploaded_video_file.name)[0]
+        video_path = f"{original_file_name}.mp4"
+        with open(video_path, "wb") as f:
+            f.write(uploaded_video_file.read())
 
         st.success("Video uploaded successfully!")
 
@@ -166,7 +158,8 @@ def analyze_video(video_path):
     st.write(f"Video Duration: {video_clip.duration} seconds")
 
     # Extract audio from the video
-    video_audio_path = "video_audio.wav"
+    original_file_name = os.path.splitext(video_path)[0]
+    video_audio_path = f"{original_file_name}_audio.wav"
     video_clip.audio.write_audiofile(video_audio_path)
 
     # Perform voice to text on the extracted audio
@@ -186,7 +179,7 @@ def analyze_video(video_path):
     sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
     # Display the result with tag cloud
-    display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Video")
+    display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from Video {original_file_name}")
 
 # Fungsi utama
 def main():
