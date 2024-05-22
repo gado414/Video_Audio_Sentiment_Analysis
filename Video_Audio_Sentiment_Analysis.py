@@ -34,10 +34,17 @@ def clean_and_process_text(text):
 
 # Fungsi untuk mengubah suara menjadi teks
 def voice_to_text_asli(audio_path):
+    # Determine the audio file format
+    audio_format = audio_path.split('.')[-1]
+
+    # Perform speech-to-text conversion
     with sr.AudioFile(audio_path) as source:
-        audio_data = recognizer.record(source)
-        text_result = recognizer.recognize_google(audio_data, language="id-ID")
-        return text_result
+        if audio_format == 'mp3':
+            audio_data = recognizer.record(source)
+            text_result = recognizer.recognize_google(audio_data, language="id-ID")
+            return text_result
+        else:
+            raise ValueError("Unsupported audio format. Only MP3 files are supported.")
 
 # Fungsi untuk melakukan NLP pada teks
 def nlp_processing(text):
