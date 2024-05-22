@@ -34,17 +34,10 @@ def clean_and_process_text(text):
 
 # Fungsi untuk mengubah suara menjadi teks
 def voice_to_text_asli(audio_path):
-    # Determine the audio file format
-    audio_format = audio_path.split('.')[-1]
-
-    # Perform speech-to-text conversion
     with sr.AudioFile(audio_path) as source:
-        if audio_format == 'mp3':
-            audio_data = recognizer.record(source)
-            text_result = recognizer.recognize_google(audio_data, language="id-ID")
-            return text_result
-        else:
-            raise ValueError("Unsupported audio format. Only MP3 files are supported.")
+        audio_data = recognizer.record(source)
+        text_result = recognizer.recognize_google(audio_data, language="id-ID")
+        return text_result
 
 # Fungsi untuk melakukan NLP pada teks
 def nlp_processing(text):
@@ -104,11 +97,31 @@ def upload_audio_with_tag_cloud():
         analyze_audio(audio_path, uploaded_audio_file.name)
 
 # Fungsi untuk melakukan analisis audio
-def analyze_audio(audio_path, original_filename):
-    st.write(f"Analyzing audio '{original_filename}'...")
+# Fungsi untuk mengunggah file audio dengan tag cloud
+def upload_audio_with_tag_cloud():
+    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
 
-    # Audio_path is already in .wav or .mp3 format, perform voice to text on the audio file
-    file_text = voice_to_text_asli(audio_path)
+    if uploaded_audio_file is not None:
+        audio_path = "temp_audio.wav"
+        with open(audio_path, "wb") as f:
+            f.write(uploaded_audio_file.read())
+
+        st.success("Audio uploaded successfully!")
+
+        # Perform audio analysis
+        analyze_audio(audio_path)
+
+# Fungsi untuk melakukan analisis audio
+def analyze_audio(audio_path):
+    st.write("Analyzing audio...")
+
+    # Convert .m4a to .wav using pydub
+    converted_audio_path = "temp_audio.wav"
+    audio = AudioSegment.from_file(audio_path, format="m4a")
+    audio.export(converted_audio_path, format="wav")
+
+    # Perform voice to text on the converted audio
+    file_text = voice_to_text_asli(converted_audio_path)
 
     # Display the Voice to Text result
     st.write("Voice to Text result:")
@@ -132,18 +145,19 @@ def upload_video_with_tag_cloud():
 
     if uploaded_video_file is not None:
         # Save the uploaded video file to a temporary location
-        video_path = "temp_video.mp4"
-        with open(video_path, "wb") as f:
-            f.write(uploaded_video_file.read())
+        with st.spinner("Uploading video..."):
+            video_path = "temp_video.mp4"
+            with open(video_path, "wb") as f:
+                f.write(uploaded_video_file.read())
 
-        st.success(f"Video '{uploaded_video_file.name}' uploaded successfully!")
+        st.success("Video uploaded successfully!")
 
         # Perform video analysis
-        analyze_video(video_path, uploaded_video_file.name)
+        analyze_video(video_path)
 
-# Function to perform video analysis
-def analyze_video(video_path, original_filename):
-    st.write(f"Analyzing video '{original_filename}'...")
+# Fungsi untuk melakukan analisis video
+def analyze_video(video_path):
+    st.write("Analyzing video...")
 
     # Load the video clip
     video_clip = VideoFileClip(video_path)
@@ -174,12 +188,12 @@ def analyze_video(video_path, original_filename):
     # Display the result with tag cloud
     display_result_with_tag_cloud(cleaned_text, sentiment_score, "Results from Video")
 
-# Main function
+# Fungsi utama
 def main():
-    # Menu selection
-    menu = st.sidebar.selectbox("Select Menu", ["Upload Audio", "Upload Video"])
+    # Pilihan menu
+    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video"])
 
-    # Run the selected menu function
+    # Jalankan fungsi sesuai pilihan menu
     if menu == "Upload Audio":
         upload_audio_with_tag_cloud()
     elif menu == "Upload Video":
