@@ -50,7 +50,7 @@ mpmath
 nest-asyncio
 networkx
 numpy
-opencv-python
+opencv-python-headless
 packaging
 pandas
 parso
