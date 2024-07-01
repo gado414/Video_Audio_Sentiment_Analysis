@@ -4,3 +4,5 @@ opencv-python-headless
 dlib-bin
 streamlit
 sastrawi
+transformers
+torch
