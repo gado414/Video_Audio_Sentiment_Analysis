@@ -111,3 +111,4 @@ wcwidth
 wheel
 streamlit-webrtc
 soundfile
+face_recognition
