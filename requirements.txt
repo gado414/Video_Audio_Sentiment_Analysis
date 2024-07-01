@@ -10,4 +10,4 @@ wordcloud
 moviepy
 SpeechRecognition
 soundfile
-face_recognition
+deepface
