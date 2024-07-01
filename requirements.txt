@@ -112,3 +112,4 @@ wcwidth
 wheel
 streamlit-webrtc
 soundfile
+dlib-bin
