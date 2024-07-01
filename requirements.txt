@@ -10,3 +10,4 @@ wordcloud
 moviepy
 SpeechRecognition
 soundfile
+face-recognition
