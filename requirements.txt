@@ -9,3 +9,4 @@ torch
 wordcloud
 moviepy
 SpeechRecognition
+soundfile
