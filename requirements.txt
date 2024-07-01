@@ -1,7 +1,6 @@
 streamlit
 regex
 Sastrawi
-transformers
 wordcloud
 matplotlib
 moviepy
