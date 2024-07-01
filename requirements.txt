@@ -1,7 +1,7 @@
+dlib-bin
 numpy
 Pillow
 opencv-python-headless
-dlib-bin
 streamlit
 sastrawi
 transformers
