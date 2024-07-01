@@ -119,5 +119,3 @@ wordcloud
 zipp
 streamlit-webrtc
 soundfile
-deepface
-opencv-python-headless
