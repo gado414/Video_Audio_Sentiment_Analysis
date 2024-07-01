@@ -1,7 +1,6 @@
 streamlit
 SpeechRecognition
 Sastrawi
-transformers
 wordcloud
 matplotlib
 moviepy
@@ -82,7 +81,6 @@ pytweening
 pytz
 PyYAML
 pyzmq
-pydub
 referencing
 regex
 requests
@@ -102,7 +100,6 @@ tenacity
 tokenizers
 toml
 toolz
-torch
 tornado
 tqdm
 traitlets
