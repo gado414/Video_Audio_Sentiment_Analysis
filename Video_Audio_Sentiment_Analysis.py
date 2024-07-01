@@ -6,15 +6,15 @@ from transformers import pipeline
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip
-import speech_recognition as sr
 import soundfile as sf
 import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import cv2
-import face_recognition
+from deepface import DeepFace
 
 # Inisialisasi modul speech recognition
+import speech_recognition as sr
 recognizer = sr.Recognizer()
 
 # Inisialisasi modul Sastrawi
@@ -128,37 +128,6 @@ def analyze_audio(audio_path, original_file_name):
 
         display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
 
-# Fungsi untuk mendeteksi emosi dari wajah dalam video
-def detect_face_emotion(frame, face_locations):
-    face_encodings = face_recognition.face_encodings(frame, face_locations)
-    for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-        face_image = frame[top:bottom, left:right]
-        face_image_rgb = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(face_image_rgb)
-        face_tensor = transforms.ToTensor()(pil_image).unsqueeze(0)
-        face_emotion_output = model(face_tensor)
-        emotion_score = torch.softmax(face_emotion_output.logits, dim=1)
-        emotion_label = torch.argmax(emotion_score).item()
-
-        if emotion_label == 0:
-            label = "Angry"
-        elif emotion_label == 1:
-            label = "Disgust"
-        elif emotion_label == 2:
-            label = "Fear"
-        elif emotion_label == 3:
-            label = "Happy"
-        elif emotion_label == 4:
-            label = "Sad"
-        elif emotion_label == 5:
-            label = "Surprise"
-        elif emotion_label == 6:
-            label = "Neutral"
-        
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-        cv2.putText(frame, label, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
-    return frame
-
 # Fungsi untuk melakukan analisis video
 def analyze_video(video_path):
     st.write("Analyzing video...")
@@ -192,14 +161,29 @@ def analyze_video(video_path):
         ret, frame = cap.read()
         if not ret:
             break
-        face_locations = face_recognition.face_locations(frame)
-        frame = detect_face_emotion(frame, face_locations)
+        # Detect face emotions using DeepFace
+        frame = detect_face_emotion(frame)
         cv2.imshow('Video', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
+
+# Fungsi untuk mendeteksi emosi dari wajah dalam video
+def detect_face_emotion(frame):
+    # Using DeepFace for face emotion detection
+    try:
+        # Use DeepFace for face emotion analysis
+        detections = DeepFace.analyze(frame, actions=['emotion'])
+        for face in detections:
+            label = face['dominant_emotion']
+            cv2.putText(frame, label, (face['region'][0], face['region'][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+            cv2.rectangle(frame, (face['region'][0], face['region'][1]), (face['region'][2], face['region'][3]), (0, 0, 255), 2)
+    except Exception as e:
+        st.error(f"Error analyzing face emotion: {str(e)}")
+
+    return frame
 
 # Fungsi untuk mengunggah file video dengan tag cloud
 def upload_video_with_tag_cloud():
