@@ -78,7 +78,6 @@ pytweening
 pytz
 PyYAML
 pyzmq
-pydub
 referencing
 regex
 requests
