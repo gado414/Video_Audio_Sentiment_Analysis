@@ -62,7 +62,7 @@ def map_sentiment_category(score):
     else:
         return 0  # Netral
 
-# Fungsi untuk membuat tag cloud
+# Fungsi untuk membuat tag cloud dan mengembalikan data kata-kata beserta frekuensinya
 def create_tag_cloud(text):
     wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
     fig = plt.figure(figsize=(10, 10))
@@ -70,23 +70,51 @@ def create_tag_cloud(text):
     plt.axis("off")
     st.pyplot(fig)
 
-# Fungsi untuk menampilkan hasil di bawah kategori dan membuat tag cloud
+    # Menghitung frekuensi kata-kata
+    words = text.split()
+    word_freq = {}
+    for word in words:
+        if word in word_freq:
+            word_freq[word] += 1
+        else:
+            word_freq[word] = 1
+    
+    return word_freq
+
+# Fungsi untuk membuat diagram kata-kata dominan
+def create_word_frequency_chart(word_freq):
+    sorted_word_freq = dict(sorted(word_freq.items(), key=lambda item: item[1], reverse=True))
+    top_words = list(sorted_word_freq.keys())[:10]
+    top_freqs = list(sorted_word_freq.values())[:10]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(top_words, top_freqs, color='skyblue')
+    ax.set_xlabel('Kata')
+    ax.set_ylabel('Frekuensi')
+    ax.set_title('Top 10 Kata yang Mempengaruhi Sentimen')
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+# Fungsi untuk menampilkan hasil di bawah kategori dan membuat tag cloud serta diagram
 def display_result_with_tag_cloud(text, sentiment_score, category):
     sentiment_label = ""
     if sentiment_score == 1:
-        sentiment_label = "Positive"
+        sentiment_label = "Positif"
     elif sentiment_score == -1:
-        sentiment_label = "Negative"
+        sentiment_label = "Negatif"
     else:
-        sentiment_label = "Neutral"
+        sentiment_label = "Netral"
     
-    result_text = f"{category}\nVoice to Text: {text}\nSentiment Analysis: {sentiment_score} - {sentiment_label}\n"
+    result_text = f"{category}\nVoice to Text: {text}\nAnalisis Sentimen: {sentiment_score} - {sentiment_label}\n"
 
     # Display results in Streamlit
     st.write(result_text)
 
     # Create and display tag cloud
-    create_tag_cloud(text)
+    word_freq = create_tag_cloud(text)
+
+    # Create and display word frequency chart
+    create_word_frequency_chart(word_freq)
 
 # Fungsi untuk mengunggah file audio dengan tag cloud
 def upload_audio_with_tag_cloud():
