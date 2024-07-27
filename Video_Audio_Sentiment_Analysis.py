@@ -9,6 +9,10 @@ from moviepy.editor import VideoFileClip
 import speech_recognition as sr
 import soundfile as sf
 import os
+import librosa
+import numpy as np
+import cv2
+from deepface import DeepFace
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
@@ -16,9 +20,6 @@ recognizer = sr.Recognizer()
 # Inisialisasi modul Sastrawi
 stemmer = StemmerFactory().create_stemmer()
 stopword_remover = StopWordRemoverFactory().create_stop_word_remover()
-
-# Inisialisasi pipeline untuk pengenalan emosi dari audio
-emotion_recognition_pipeline = pipeline("audio-classification", model="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition")
 
 # Fungsi untuk membersihkan dan mengolah teks menggunakan Sastrawi
 def clean_and_process_text(text):
@@ -166,17 +167,16 @@ def analyze_audio(audio_path, original_file_name):
         nlp_result = nlp_processing(cleaned_text)
         sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
-        # Perform emotion recognition on audio using pipeline
-        emotion_result = recognize_emotion_audio_pipeline(audio_path)
-        st.write(f"Emotion Recognition result: {emotion_result}")
-
         # Display the result with tag cloud
         display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
 
-# Fungsi untuk mengenali emosi dari audio menggunakan pipeline
-def recognize_emotion_audio_pipeline(audio_path):
-    results = emotion_recognition_pipeline(audio_path)
-    return results
+    # Perform emotion recognition on the audio
+    emotion_recognition = pipeline("audio-classification", model="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition")
+    emotions = emotion_recognition(audio_path)
+
+    st.write("Emotion Recognition Results:")
+    for emotion in emotions:
+        st.write(f"{emotion['label']}: {emotion['score']}")
 
 # Fungsi untuk mengunggah file video dengan tag cloud
 def upload_video_with_tag_cloud():
@@ -226,40 +226,40 @@ def analyze_video(video_path):
         nlp_result = nlp_processing(cleaned_text)
         sentiment_score = map_sentiment_category(nlp_result[0]['score'])
 
-        # Perform emotion recognition on video using DeepFace
-        emotion_result = recognize_emotion_video(video_path)
-        st.write(f"Emotion Recognition result: {emotion_result}")
-
         # Display the result with tag cloud
         display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from Video {original_file_name}")
 
-# Fungsi untuk mengenali emosi dari video menggunakan DeepFace
-def recognize_emotion_video(video_path):
-    # Load video
-    video_clip = VideoFileClip(video_path)
-    emotion_results = []
+    # Perform emotion recognition on the video
+    st.write("Performing emotion recognition on video...")
+    try:
+        video_capture = cv2.VideoCapture(video_path)
+        while video_capture.isOpened():
+            ret, frame = video_capture.read()
+            if not ret:
+                break
 
-    # Process video frames for emotion recognition
-    for frame in video_clip.iter_frames(fps=1):
-        # Convert frame to RGB format
-        frame_rgb = frame[:, :, [2, 1, 0]]
+            results = DeepFace.analyze(frame, actions=['emotion'])
 
-        # Perform emotion recognition
-        emotion_analysis = DeepFace.analyze(frame_rgb, actions=['emotion'])
-        emotion_results.append(emotion_analysis['emotion'])
+            # Display the emotion recognition results
+            for result in results:
+                st.write(f"Emotion: {result['dominant_emotion']}")
 
-    return emotion_results
+        video_capture.release()
+    except Exception as e:
+        st.error(f"Error in video emotion recognition: {e}")
 
-# Fungsi utama
+# Main Streamlit app
 def main():
-    # Pilihan menu
-    menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video"])
+    st.title("Voice and Video Sentiment Analysis with Emotion Recognition")
+    st.write("Upload an audio or video file for sentiment analysis and emotion recognition")
 
-    # Jalankan fungsi sesuai pilihan menu
-    if menu == "Upload Audio":
-        upload_audio_with_tag_cloud()
-    elif menu == "Upload Video":
-        upload_video_with_tag_cloud()
+    # Upload audio file with tag cloud
+    st.subheader("Audio Analysis")
+    upload_audio_with_tag_cloud()
+
+    # Upload video file with tag cloud
+    st.subheader("Video Analysis")
+    upload_video_with_tag_cloud()
 
 if __name__ == "__main__":
     main()
