@@ -43,11 +43,9 @@ jupyter_core
 kiwisolver
 markdown-it-py
 MarkupSafe
-matplotlib
 matplotlib-inline
 mdurl
 MouseInfo
-moviepy
 mpmath
 nest-asyncio
 networkx
@@ -90,13 +88,10 @@ rich
 rpds-py
 rubicon-objc
 safetensors
-Sastrawi
 setuptools
 six
 smmap
-SpeechRecognition
 stack-data
-streamlit
 sympy
 tenacity
 tokenizers
@@ -105,7 +100,6 @@ toolz
 tornado
 tqdm
 traitlets
-transformers
 typing_extensions
 tzdata
 tzlocal
@@ -114,7 +108,6 @@ validators
 watchdog
 wcwidth
 wheel
-wordcloud
-zipp
 streamlit-webrtc
 soundfile
+DeepFace
