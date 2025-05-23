@@ -5,7 +5,7 @@ SpeechRecognition
 Sastrawi
 wordcloud
 matplotlib
-moviepy
+moviepy==1.0.3
 altair
 appnope
 asttokens
@@ -47,7 +47,7 @@ matplotlib
 matplotlib-inline
 mdurl
 MouseInfo
-moviepy
+moviepy==1.0.3
 mpmath
 nest-asyncio
 networkx
