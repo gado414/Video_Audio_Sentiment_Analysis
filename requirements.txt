@@ -5,7 +5,6 @@ SpeechRecognition
 Sastrawi
 wordcloud
 matplotlib
-moviepy==1.0.3
 altair
 appnope
 asttokens
@@ -116,5 +115,5 @@ wcwidth
 wheel
 wordcloud
 zipp
-streamlit-webrtc
+streamlit-webrtc==0.43.0
 soundfile
