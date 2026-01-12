@@ -115,5 +115,4 @@ wcwidth
 wheel
 wordcloud
 zipp
-streamlit-webrtc==0.43.0
 soundfile
