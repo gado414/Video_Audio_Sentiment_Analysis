@@ -1,229 +1,238 @@
-   import os
-   import re
-   import subprocess
-   import tempfile
-   import imageio_ffmpeg
-   import matplotlib.pyplot as plt
-   import speech_recognition as sr
-   import streamlit as st
+import os
+import re
+import subprocess
+import tempfile
 
-# Inisialisasi modul speech recognition
-recognizer = sr.Recognizer()
+import imageio_ffmpeg
+import matplotlib.pyplot as plt
+import speech_recognition as sr
+import streamlit as st
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+from transformers import pipeline
+from wordcloud import WordCloud
 
-# Inisialisasi modul Sastrawi
-stemmer = StemmerFactory().create_stemmer()
-stopword_remover = StopWordRemoverFactory().create_stop_word_remover()
+MODEL_NAME = "ayameRushia/bert-base-indonesian-1.5G-sentiment-analysis-smsa"
+CHUNK_SECONDS = 50  # Google Speech API gratis membatasi durasi per request (~1 menit)
 
-# Fungsi untuk membersihkan dan mengolah teks menggunakan Sastrawi
+
+# ---------------------------------------------------------------------------
+# Resource yang di-cache (dimuat sekali saja, bukan setiap analisis)
+# ---------------------------------------------------------------------------
+@st.cache_resource(show_spinner="Memuat model sentimen...")
+def load_sentiment_model():
+    return pipeline("text-classification", model=MODEL_NAME)
+
+
+@st.cache_resource
+def load_sastrawi():
+    stemmer = StemmerFactory().create_stemmer()
+    stopword_remover = StopWordRemoverFactory().create_stop_word_remover()
+    return stemmer, stopword_remover
+
+
+# ---------------------------------------------------------------------------
+# Pengolahan teks
+# ---------------------------------------------------------------------------
 def clean_and_process_text(text):
-    # Membersihkan teks dari karakter khusus
-    cleaned_text = re.sub(r'[^a-zA-Z\s]', '', text)
-
-    # Mengonversi teks ke huruf kecil
-    cleaned_text = cleaned_text.lower()
-
-    # Menghapus stop words menggunakan Sastrawi
+    stemmer, stopword_remover = load_sastrawi()
+    cleaned_text = re.sub(r"[^a-zA-Z\s]", "", text).lower()
     cleaned_text = stopword_remover.remove(cleaned_text)
-
-    # Melakukan stemming menggunakan Sastrawi
     cleaned_text = stemmer.stem(cleaned_text)
-
     return cleaned_text
 
-# Fungsi untuk mengubah suara menjadi teks
-def voice_to_text_asli(audio_path):
+
+# ---------------------------------------------------------------------------
+# Audio: konversi ke WAV & speech-to-text
+# ---------------------------------------------------------------------------
+def convert_to_wav(input_path, output_path):
+    """Konversi audio/video apa pun (mp3, wav, mp4) ke WAV mono 16 kHz dengan ffmpeg."""
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    cmd = [ffmpeg, "-y", "-i", input_path, "-vn", "-ac", "1", "-ar", "16000",
+           "-acodec", "pcm_s16le", output_path]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0 or not os.path.exists(output_path):
+        raise RuntimeError(f"Gagal mengonversi file dengan ffmpeg:\n{result.stderr[-1000:]}")
+    return output_path
+
+
+def get_media_duration(path):
     try:
-        with sr.AudioFile(audio_path) as source:
-            audio_data = recognizer.record(source)
-            text_result = recognizer.recognize_google(audio_data, language="id-ID")
-            return text_result
-    except sr.UnknownValueError:
-        st.error("Google Speech Recognition could not understand the audio")
-        return ""
-    except sr.RequestError as e:
-        st.error(f"Could not request results from Google Speech Recognition service; {e}")
-        return ""
+        _, seconds = imageio_ffmpeg.count_frames_and_secs(path)
+        return seconds
+    except Exception:
+        return None
 
-# Fungsi untuk melakukan NLP pada teks
+
+def voice_to_text(wav_path):
+    """Speech-to-text dipotong per CHUNK_SECONDS agar audio panjang tidak ditolak Google."""
+    recognizer = sr.Recognizer()
+    texts = []
+    with sr.AudioFile(wav_path) as source:
+        total = source.DURATION
+        offset = 0.0
+        progress = st.progress(0.0, text="Mengubah suara menjadi teks...")
+        while offset < total:
+            audio_data = recognizer.record(source, duration=CHUNK_SECONDS)
+            try:
+                texts.append(recognizer.recognize_google(audio_data, language="id-ID"))
+            except sr.UnknownValueError:
+                pass  # bagian ini tidak terdeteksi ucapan, lanjut ke potongan berikutnya
+            except sr.RequestError as e:
+                st.error(f"Tidak dapat menghubungi Google Speech Recognition: {e}")
+                break
+            offset += CHUNK_SECONDS
+            progress.progress(min(offset / total, 1.0) if total else 1.0,
+                              text="Mengubah suara menjadi teks...")
+        progress.empty()
+
+    text = " ".join(texts).strip()
+    if not text:
+        st.error("Google Speech Recognition tidak dapat mengenali ucapan pada audio.")
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Analisis sentimen
+# ---------------------------------------------------------------------------
 def nlp_processing(text):
-    nlp = pipeline("text-classification", model="ayameRushia/bert-base-indonesian-1.5G-sentiment-analysis-smsa")
-    result = nlp(text)
-    return result
+    nlp = load_sentiment_model()
+    # truncation agar teks panjang (>512 token) tidak membuat model error
+    return nlp(text, truncation=True, max_length=512)[0]
 
-# Fungsi untuk membuat mapping antara skor sentiment dengan kategori
-def map_sentiment_category(score):
-    if score >= 0.6:
-        return 1  # Positif
-    elif score <= 0.4:
-        return -1  # Negatif
-    else:
-        return 0  # Netral
 
-# Fungsi untuk membuat tag cloud dan mengembalikan data kata-kata beserta frekuensinya
-def create_tag_cloud(text):
-    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
-    fig = plt.figure(figsize=(10, 10))
-    plt.imshow(wordcloud)
-    plt.axis("off")
-    st.pyplot(fig)
+def map_sentiment_category(label):
+    """Petakan label model ke skor -1 / 0 / 1.
 
-    # Menghitung frekuensi kata-kata
-    words = text.split()
+    Catatan: versi lama memakai `score` (tingkat keyakinan model), bukan label,
+    sehingga hasil sentimen salah. Sekarang memakai label prediksi.
+    """
+    label = label.lower()
+    if "pos" in label or label == "label_0":
+        return 1
+    if "neg" in label or label == "label_2":
+        return -1
+    return 0
+
+
+SENTIMENT_NAME = {1: "Positif", 0: "Netral", -1: "Negatif"}
+
+
+# ---------------------------------------------------------------------------
+# Visualisasi
+# ---------------------------------------------------------------------------
+def count_words(text):
     word_freq = {}
-    for word in words:
-        if word in word_freq:
-            word_freq[word] += 1
-        else:
-            word_freq[word] = 1
-    
+    for word in text.split():
+        word_freq[word] = word_freq.get(word, 0) + 1
     return word_freq
 
-# Fungsi untuk membuat diagram kata-kata dominan
+
+def create_tag_cloud(text):
+    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation="bilinear")
+    ax.axis("off")
+    st.pyplot(fig)
+    plt.close(fig)
+
+
 def create_word_frequency_chart(word_freq):
-    sorted_word_freq = dict(sorted(word_freq.items(), key=lambda item: item[1], reverse=True))
-    top_words = list(sorted_word_freq.keys())[:10]
-    top_freqs = list(sorted_word_freq.values())[:10]
+    top = sorted(word_freq.items(), key=lambda item: item[1], reverse=True)[:10]
+    top_words = [w for w, _ in top]
+    top_freqs = [f for _, f in top]
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(top_words, top_freqs, color='skyblue')
-    ax.set_xlabel('Kata')
-    ax.set_ylabel('Frekuensi')
-    ax.set_title('Top 10 Kata yang Mempengaruhi Sentimen')
-    plt.xticks(rotation=45)
+    ax.bar(top_words, top_freqs, color="skyblue")
+    ax.set_xlabel("Kata")
+    ax.set_ylabel("Frekuensi")
+    ax.set_title("Top 10 Kata yang Mempengaruhi Sentimen")
+    plt.setp(ax.get_xticklabels(), rotation=45)
     st.pyplot(fig)
+    plt.close(fig)
 
-# Fungsi untuk menampilkan hasil di bawah kategori dan membuat tag cloud serta diagram
-def display_result_with_tag_cloud(text, sentiment_score, category):
-    sentiment_label = ""
-    if sentiment_score == 1:
-        sentiment_label = "Positif"
-    elif sentiment_score == -1:
-        sentiment_label = "Negatif"
-    else:
-        sentiment_label = "Netral"
-    
-    result_text = f"{category}\nVoice to Text: {text}\nAnalisis Sentimen: {sentiment_score} - {sentiment_label}\n"
 
-    # Display results in Streamlit
-    st.write(result_text)
+def display_result_with_tag_cloud(text, nlp_result, category):
+    sentiment_score = map_sentiment_category(nlp_result["label"])
+    sentiment_label = SENTIMENT_NAME[sentiment_score]
 
-    # Create and display tag cloud
-    word_freq = create_tag_cloud(text)
+    st.subheader(category)
+    st.write(f"**Analisis Sentimen:** {sentiment_score} - {sentiment_label} "
+             f"(label model: {nlp_result['label']}, keyakinan: {nlp_result['score']:.2%})")
 
-    # Create and display word frequency chart
-    create_word_frequency_chart(word_freq)
+    if not text.strip():
+        st.warning("Teks kosong setelah dibersihkan, tag cloud tidak dapat dibuat.")
+        return
 
-# Fungsi untuk mengunggah file audio dengan tag cloud
-def upload_audio_with_tag_cloud():
-    uploaded_audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
+    create_tag_cloud(text)
+    create_word_frequency_chart(count_words(text))
 
-    if uploaded_audio_file is not None:
-        # Save the uploaded file to a temporary path with the original file name
-        file_extension = uploaded_audio_file.name.split('.')[-1]
-        original_file_name = os.path.splitext(uploaded_audio_file.name)[0]
-        audio_path = f"{original_file_name}.{file_extension}"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio_file.read())
 
-        st.success(f"Audio '{uploaded_audio_file.name}' uploaded successfully!")
+# ---------------------------------------------------------------------------
+# Alur analisis
+# ---------------------------------------------------------------------------
+def analyze_wav(wav_path, title):
+    file_text = voice_to_text(wav_path)
+    if not file_text:
+        return
 
-        # Convert MP3 to WAV
-        if file_extension == 'mp3':
-            converted_audio_path = f"{original_file_name}.wav"
-            audio_data, samplerate = sf.read(audio_path)
-            sf.write(converted_audio_path, audio_data, samplerate)
+    st.write("**Voice to Text result:**")
+    st.write(file_text)
 
-            # Perform audio analysis
-            analyze_audio(converted_audio_path, uploaded_audio_file.name)
+    cleaned_text = clean_and_process_text(file_text)
+    st.write("**Cleansing Data result:**")
+    st.write(cleaned_text if cleaned_text else "_(kosong)_")
+
+    with st.spinner("Menganalisis sentimen..."):
+        # analisis pada teks asli bila hasil cleansing kosong
+        nlp_result = nlp_processing(cleaned_text or file_text)
+
+    display_result_with_tag_cloud(cleaned_text, nlp_result, title)
+
+
+def handle_upload(uploaded_file, is_video):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+        input_path = os.path.join(tmpdir, f"input{ext}")
+        with open(input_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        st.success(f"File '{uploaded_file.name}' berhasil diunggah!")
+
+        if is_video:
+            st.video(input_path)
         else:
-            # Perform audio analysis
-            analyze_audio(audio_path, uploaded_audio_file.name)
+            st.audio(input_path)
 
-# Fungsi untuk melakukan analisis audio
-def analyze_audio(audio_path, original_file_name):
-    st.write("Analyzing audio...")
+        duration = get_media_duration(input_path)
+        if duration:
+            st.write(f"Durasi: {duration:.1f} detik")
 
-    # Perform voice to text on the audio file
-    file_text = voice_to_text_asli(audio_path)
+        wav_path = os.path.join(tmpdir, "audio.wav")
+        try:
+            with st.spinner("Mengekstrak / mengonversi audio..."):
+                convert_to_wav(input_path, wav_path)
+        except RuntimeError as e:
+            st.error(str(e))
+            return
 
-    if file_text:
-        # Display the Voice to Text result
-        st.write("Voice to Text result:")
-        st.write(file_text)
+        prefix = "Video" if is_video else "Audio"
+        analyze_wav(wav_path, f"Hasil dari {prefix} {uploaded_file.name}")
 
-        # Perform text processing
-        st.write("Cleansing Data result:")
-        cleaned_text = clean_and_process_text(file_text)
-        st.write(cleaned_text)
 
-        # Perform sentiment analysis
-        nlp_result = nlp_processing(cleaned_text)
-        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-
-        # Display the result with tag cloud
-        display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from {original_file_name}")
-
-# Fungsi untuk mengunggah file video dengan tag cloud
-def upload_video_with_tag_cloud():
-    uploaded_video_file = st.file_uploader("Upload Video File", type=["mp4"])
-
-    if uploaded_video_file is not None:
-        # Save the uploaded video file to a temporary location with the original file name
-        original_file_name = os.path.splitext(uploaded_video_file.name)[0]
-        video_path = f"{original_file_name}.mp4"
-        with open(video_path, "wb") as f:
-            f.write(uploaded_video_file.read())
-
-        st.success("Video uploaded successfully!")
-
-        # Perform video analysis
-        analyze_video(video_path)
-
-# Fungsi untuk melakukan analisis video
-def analyze_video(video_path):
-    st.write("Analyzing video...")
-
-    # Load the video clip
-    video_clip = VideoFileClip(video_path)
-
-    # Display the video duration
-    st.write(f"Video Duration: {video_clip.duration} seconds")
-
-    # Extract audio from the video
-    original_file_name = os.path.splitext(video_path)[0]
-    video_audio_path = f"{original_file_name}_audio.wav"
-    video_clip.audio.write_audiofile(video_audio_path)
-
-    # Perform voice to text on the extracted audio
-    file_text = voice_to_text_asli(video_audio_path)
-
-    if file_text:
-        # Display the Voice to Text result
-        st.write("Voice to Text result:")
-        st.write(file_text)
-
-        # Perform text processing
-        st.write("Cleansing Data result:")
-        cleaned_text = clean_and_process_text(file_text)
-        st.write(cleaned_text)
-
-        # Perform sentiment analysis
-        nlp_result = nlp_processing(cleaned_text)
-        sentiment_score = map_sentiment_category(nlp_result[0]['score'])
-
-        # Display the result with tag cloud
-        display_result_with_tag_cloud(cleaned_text, sentiment_score, f"Results from Video {original_file_name}")
-
-# Fungsi utama
 def main():
-    # Pilihan menu
+    st.title("Analisis Sentimen Video & Audio")
     menu = st.sidebar.selectbox("Pilih Menu", ["Upload Audio", "Upload Video"])
 
-    # Jalankan fungsi sesuai pilihan menu
     if menu == "Upload Audio":
-        upload_audio_with_tag_cloud()
-    elif menu == "Upload Video":
-        upload_video_with_tag_cloud()
+        uploaded = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
+        if uploaded is not None:
+            handle_upload(uploaded, is_video=False)
+    else:
+        uploaded = st.file_uploader("Upload Video File", type=["mp4"])
+        if uploaded is not None:
+            handle_upload(uploaded, is_video=True)
+
 
 if __name__ == "__main__":
     main()
