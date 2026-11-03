@@ -13,12 +13,7 @@ from transformers import pipeline
 from wordcloud import WordCloud
 
 MODEL_NAME = "ayameRushia/bert-base-indonesian-1.5G-sentiment-analysis-smsa"
-CHUNK_SECONDS = 50  # Google Speech API gratis membatasi durasi per request (~1 menit)
-
-
-# ---------------------------------------------------------------------------
-# Resource yang di-cache (dimuat sekali saja, bukan setiap analisis)
-# ---------------------------------------------------------------------------
+CHUNK_SECONDS = 50  
 @st.cache_resource(show_spinner="Memuat model sentimen...")
 def load_sentiment_model():
     return pipeline("text-classification", model=MODEL_NAME)
@@ -31,9 +26,7 @@ def load_sastrawi():
     return stemmer, stopword_remover
 
 
-# ---------------------------------------------------------------------------
-# Pengolahan teks
-# ---------------------------------------------------------------------------
+
 def clean_and_process_text(text):
     stemmer, stopword_remover = load_sastrawi()
     cleaned_text = re.sub(r"[^a-zA-Z\s]", "", text).lower()
@@ -42,9 +35,6 @@ def clean_and_process_text(text):
     return cleaned_text
 
 
-# ---------------------------------------------------------------------------
-# Audio: konversi ke WAV & speech-to-text
-# ---------------------------------------------------------------------------
 def convert_to_wav(input_path, output_path):
     """Konversi audio/video apa pun (mp3, wav, mp4) ke WAV mono 16 kHz dengan ffmpeg."""
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
@@ -117,10 +107,6 @@ def map_sentiment_category(label):
 
 SENTIMENT_NAME = {1: "Positif", 0: "Netral", -1: "Negatif"}
 
-
-# ---------------------------------------------------------------------------
-# Visualisasi
-# ---------------------------------------------------------------------------
 def count_words(text):
     word_freq = {}
     for word in text.split():
@@ -167,10 +153,6 @@ def display_result_with_tag_cloud(text, nlp_result, category):
     create_tag_cloud(text)
     create_word_frequency_chart(count_words(text))
 
-
-# ---------------------------------------------------------------------------
-# Alur analisis
-# ---------------------------------------------------------------------------
 def analyze_wav(wav_path, title):
     file_text = voice_to_text(wav_path)
     if not file_text:
