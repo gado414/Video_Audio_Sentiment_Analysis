@@ -1,14 +1,11 @@
-import streamlit as st
-import re
-from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
-from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
-from transformers import pipeline
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-from moviepy.editor import VideoFileClip
-import speech_recognition as sr
-import soundfile as sf
-import os
+   import os
+   import re
+   import subprocess
+   import tempfile
+   import imageio_ffmpeg
+   import matplotlib.pyplot as plt
+   import speech_recognition as sr
+   import streamlit as st
 
 # Inisialisasi modul speech recognition
 recognizer = sr.Recognizer()
